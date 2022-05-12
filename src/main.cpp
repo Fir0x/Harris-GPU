@@ -2,6 +2,8 @@
 #include <png.h>
 #include <iostream>
 
+#include "CPU/harris.hpp"
+
 png_bytepp read_png(const std::string file_name)
 {
     FILE *fp = fopen(file_name.c_str(), "rb");
@@ -9,7 +11,7 @@ png_bytepp read_png(const std::string file_name)
         return nullptr;
 
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    auto info_ptr = png_create_info_struct(png_ptr);  
+    auto info_ptr = png_create_info_struct(png_ptr);
     png_init_io(png_ptr, fp);
     png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
     auto row_pointers = png_get_rows(png_ptr, info_ptr);

@@ -33,7 +33,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
 
-add_executable(Harris src/main.cpp)
+include_directories(${PROJECT_SOURCE_DIR})
+add_executable(Harris src/main.cpp src/CPU/harris.cpp)
 target_compile_features(Harris PUBLIC cxx_std_17)
 target_link_libraries( Harris ${PNG_LIBRARY} CLI11::CLI11 spdlog::spdlog)
 
