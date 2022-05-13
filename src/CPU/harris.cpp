@@ -231,3 +231,150 @@ float **compute_harris_response(unsigned char **img, int width, int height)
 
     return result;
 }
+
+bool **getEllipse()
+{
+    bool staticEllipse[25][25] = {
+        {false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false},
+       {false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false},
+       {false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false},
+       {false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false},
+       {false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false},
+       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
+       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
+       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
+       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
+       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
+       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
+       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
+       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
+       {false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false},
+       {false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false},
+       {false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false},
+       {false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false},
+       {false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false}
+    };
+
+    bool** ellipse = (bool**)malloc(7 * sizeof(bool*));
+    for (int i = 0; i < 7; i++)
+    {
+        ellipse[i] = (bool*)malloc(7 * sizeof(bool));
+        memcpy(ellipse[i], staticEllipse[i], 7 * sizeof(bool));
+    }
+
+    return ellipse;
+}
+
+int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+unsigned char **morpho_erode(unsigned char **img, int width, int height, int threshold)
+{
+    bool **structElement = getEllipse();
+    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+    
+    for (int y = 0; y < height; y++)
+    {
+        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
+        
+        int imin = min(0, y - 12);
+        int imax = max(y + 12, height - 1);
+        for (int x = 0; x < height; x++)
+        {
+            int jmin = min(0, x - 12);
+            int jmax = max(x + 12, width - 1);
+            
+            unsigned char pixel = img[y][x];
+            if (pixel == 0)
+                continue;
+
+            for (int i = imin; i < imax + 1; i++)
+            {
+                for (int j = jmin; j < jmax + 1; j++)
+                {
+                    if (structElement[i - imin][j - jmin] && img[i][j] <= threshold)
+                    {
+                        pixel = 0;
+                        break;
+                    }
+                }
+                if (pixel == 0)
+                    break;
+            }
+
+            result[y][x] = pixel;
+        }
+    }
+}
+
+unsigned char **morpho_dilate(unsigned char **img, int width, int height, int threshold)
+{
+    bool **structElement = getEllipse();
+    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+
+    for (int y = 0; y < height; y++)
+    {
+        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
+        
+        int imin = min(0, y - 12);
+        int imax = max(y + 12, height - 1);
+        
+        for (int x = 0; x < width; x++)
+        {
+            int jmin = min(0, x - 12);
+            int jmax = max(x + 12, width - 1);
+            
+            unsigned char pixel = 0;
+            if (pixel > 0)
+                continue;
+
+            for (int i = imin; i < imax + 1; i++)
+            {
+                for (int j = jmin; j < jmax + 1; j++)
+                {
+                    if (structElement[i - imin][j - jmin] && img[i][j] > threshold)
+                    {
+                        pixel = img[i][j];
+                        break;
+                    }
+                }
+                if (pixel > 0)
+                    break;
+            }
+
+            result[y][x] = pixel;
+        }
+    }
+}
+
+void free_image(unsigned char **img, int h)
+{
+    for (int i = 0; i < h; i++)
+        free(img[i]);
+
+    free(img);
+}
+
+unsigned char** morpho_open(unsigned char **img, int width, int height, int threshold)
+{
+    unsigned char **eroded = morpho_erode(img, width, height, threshold);
+    unsigned char **opened = morpho_dilate(eroded, width, height, threshold);
+
+    free_image(eroded, height);
+
+    return opened;
+}
