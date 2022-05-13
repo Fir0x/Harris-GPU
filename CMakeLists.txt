@@ -29,6 +29,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 FetchContent_MakeAvailable(CLI11)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W -Wall -g")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})

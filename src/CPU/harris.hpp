@@ -1,2 +1,1 @@
-float** gauss_kernel();
-float*** gausse_derivative_kernels();
+float** compute_harris_response(unsigned char **img, int width, int height);
