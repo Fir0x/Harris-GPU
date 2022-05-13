@@ -52,10 +52,49 @@ png_bytepp read_png(const std::string file_name, int *width, int *height)
 
     png_read_image(png_ptr, row_pointers);
 
-    png_destroy_read_struct(&png_ptr, NULL, NULL); 
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL); 
     fclose(fp);
 
     return row_pointers;
+}
+
+png_bytepp rgb2gray(png_bytepp img, int w, int h)
+{
+    png_bytepp result = (png_bytepp)malloc(h * sizeof(unsigned char*));
+    for (int y = 0; y < h; y++)
+    {
+        result[y] = (unsigned char*)malloc(w * sizeof(unsigned char));
+        for (int x  = 0; x < w; x++)
+            result[y][x] = (img[y][x*4] + img[y][x*4+1] + img[y][x*4+2]) / 3;
+    }
+
+    return result;
+}
+
+png_bytepp gray2rgb(png_bytepp img, int w, int h)
+{
+    png_bytepp result = (png_bytepp)malloc(h * sizeof(unsigned char*));
+    for (int y = 0; y < h; y++)
+    {
+        result[y] = (unsigned char*)malloc(w * 4 * sizeof(unsigned char));
+        for (int x = 0; x < w; x++)
+        {
+            result[y][x*4] = img[y][x];
+            result[y][x*4+1] = img[y][x];
+            result[y][x*4+2] = img[y][x];
+            result[y][x*4+3] = 0xFF;
+        }
+    }
+
+    return result;
+}
+
+void free_image(png_bytepp img, int h)
+{
+    for (int i = 0; i < h; i++)
+        free(img[i]);
+
+    free(img);
 }
 
 void write_png(const png_bytepp buffer,
@@ -93,7 +132,7 @@ void write_png(const png_bytepp buffer,
     png_write_image(png_ptr, buffer);
 
     png_write_end(png_ptr, info_ptr);
-    png_destroy_write_struct(&png_ptr, nullptr);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
     fclose(fp);
 }
 
@@ -119,7 +158,13 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    write_png(image, imageWidth, imageHeight, "converted.png");
+    png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
+    png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
+    write_png(rgbGray, imageWidth, imageHeight, "converted.png");
+
+    free_image(image, imageHeight);
+    free_image(gray, imageHeight);
+    free_image(rgbGray, imageHeight);
 
     return 0;
 }
