@@ -45,7 +45,12 @@ png_bytepp read_png(const std::string file_name, int *width, int *height)
 
     png_read_update_info(png_ptr, info_ptr);
 
-    auto row_pointers = png_get_rows(png_ptr, info_ptr);
+    png_bytepp row_pointers = (png_bytepp)malloc(sizeof(png_bytep) * (*height));
+    for(int y = 0; y < *height; y++) {
+        row_pointers[y] = (png_bytep)malloc(png_get_rowbytes(png_ptr, info_ptr));
+    }
+
+    png_read_image(png_ptr, row_pointers);
 
     png_destroy_read_struct(&png_ptr, NULL, NULL); 
     fclose(fp);
