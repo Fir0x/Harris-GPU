@@ -58,6 +58,45 @@ png_bytepp read_png(const std::string file_name, int *width, int *height)
     return row_pointers;
 }
 
+void write_png(const png_bytepp buffer,
+               int width,
+               int height,
+               const char* filename)
+{
+    png_structp png_ptr =
+        png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+
+    if (!png_ptr)
+        return;
+
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_write_struct(&png_ptr, nullptr);
+        return;
+    }
+
+    FILE* fp = fopen(filename, "wb");
+    png_init_io(png_ptr, fp);
+
+    png_set_IHDR(png_ptr, info_ptr,
+                width,
+                height,
+                8,
+                PNG_COLOR_TYPE_RGB_ALPHA,
+                PNG_INTERLACE_NONE,
+                PNG_COMPRESSION_TYPE_DEFAULT,
+                PNG_FILTER_TYPE_DEFAULT);
+
+    png_write_info(png_ptr, info_ptr);
+
+    png_write_image(png_ptr, buffer);
+
+    png_write_end(png_ptr, info_ptr);
+    png_destroy_write_struct(&png_ptr, nullptr);
+    fclose(fp);
+}
+
 int main(int argc, char** argv)
 {
     std::string inputFile;
@@ -79,6 +118,8 @@ int main(int argc, char** argv)
         std::cout << "Could not read the image: " << inputFile << std::endl;
         return 1;
     }
+
+    write_png(image, imageWidth, imageHeight, "converted.png");
 
     return 0;
 }
