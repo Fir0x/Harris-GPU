@@ -200,17 +200,19 @@ void debugSteps(png_bytepp gray, int width, int height)
     float **dX;
     float **dY;
     gauss_derivatives(gray, width, height, &dX, &dY);
-
-    float **resp = computeHarrisResponse(gray, width, height);
-    png_bytepp erod = morphoErode(gray, width, height);
-    float **dilat = morphoDilate(resp, width, height);
-    png_bytepp thres = harrisThreshold(resp, width, height, 0.5);
-
     matrix2image(dX, width, height, "debug/dX.png");
     matrix2image(dY, width, height, "debug/dY.png");
+
+    float **resp = computeHarrisResponse(gray, width, height);
     matrix2image(resp, width, height, "debug/harrisResp.png");
+
+    png_bytepp erod = morphoErode(gray, width, height);
     write_png(gray2rgb(erod, width, height), width, height, "debug/eroded.png");
+
+    float **dilat = morphoDilate(resp, width, height);
     matrix2image(dilat, width, height, "debug/dilated.png");
+
+    png_bytepp thres = harrisThreshold(resp, width, height, 0.5);
     write_png(gray2rgb(thres, width, height), width, height, "debug/thres.png");
 }
 
