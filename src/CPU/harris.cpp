@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <cstring>
 
+typedef unsigned char ** png_bytepp;
+
 float** gauss_kernel()
 {
     float staticKernel[7][7] = {
@@ -107,7 +109,7 @@ void free_matrix(float **m, int height)
     free(m);
 }
 
-void gauss_derivatives(unsigned char **img, int  width, int height, float ***dX, float ***dY)
+void gauss_derivatives(png_bytepp img, int  width, int height, float ***dX, float ***dY)
 {
     float ***derivatives = gauss_derivative_kernels();
 
@@ -193,7 +195,7 @@ float **scalarSumMat(float **m1, float scalar, int width, int height)
     return result;
 }
 
-float **computeHarrisResponse(unsigned char **img, int width, int height)
+float **computeHarrisResponse(png_bytepp img, int width, int height)
 {
     float **imx;
     float **imy;
@@ -237,7 +239,7 @@ float **computeHarrisResponse(unsigned char **img, int width, int height)
     return result;
 }
 
-unsigned char **getEllipse()
+png_bytepp getEllipse()
 {
     unsigned char staticEllipse[25][25] = {
         {0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -287,7 +289,7 @@ int max(int a, int b)
     return a > b ? a : b;
 }
 
-void freeImage(unsigned char **img, int h)
+void freeImage(png_bytepp img, int h)
 {
     for (int i = 0; i < h; i++)
         free(img[i]);
@@ -295,10 +297,10 @@ void freeImage(unsigned char **img, int h)
     free(img);
 }
 
-unsigned char **morphoErode(unsigned char **img, int width, int height)
+png_bytepp morphoErode(png_bytepp img, int width, int height)
 {
-    unsigned char **structElement = getEllipse();
-    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+    png_bytepp structElement = getEllipse();
+    png_bytepp result = (unsigned char**)malloc(height * sizeof(unsigned char*));
     
     for (int y = 0; y < height; y++)
     {
@@ -333,7 +335,7 @@ unsigned char **morphoErode(unsigned char **img, int width, int height)
 
 float **morphoDilate(float **img, int width, int height)
 {
-    unsigned char **structElement = getEllipse();
+    png_bytepp structElement = getEllipse();
     float **result = (float**)malloc(height * sizeof(float*));
 
     for (int y = 0; y < height; y++)
@@ -370,7 +372,7 @@ float **morphoDilate(float **img, int width, int height)
 
 unsigned char** harrisThreshold(float **harris, int width, int height, float threshold)
 {
-    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+    png_bytepp result = (unsigned char**)malloc(height * sizeof(unsigned char*));
     
     float minVal = harris[0][0];
     float maxVal = harris[0][0];
@@ -407,12 +409,12 @@ bool isClose(float a, float b)
     return delta == __FLT_EPSILON__;
 }
 
-std::vector<std::tuple<float, int, int>> detectHarrisPoints(unsigned char **image, int width, int height, int max_keypoints, float threshold)
+std::vector<std::tuple<float, int, int>> detectHarrisPoints(png_bytepp image, int width, int height, int max_keypoints, float threshold)
 {
     float **harrisResponse = computeHarrisResponse(image, width, height);
 
-    unsigned char **erodedMask = morphoErode(image, width, height);
-    unsigned char **harrisThresholdMask = harrisThreshold(harrisResponse, width, height, threshold);
+    png_bytepp erodedMask = morphoErode(image, width, height);
+    png_bytepp harrisThresholdMask = harrisThreshold(harrisResponse, width, height, threshold);
     float **dilatedMask = morphoDilate(harrisResponse, width, height);
 
     std::vector<std::tuple<float, int, int>> keypoints = std::vector<std::tuple<float, int, int>>();
