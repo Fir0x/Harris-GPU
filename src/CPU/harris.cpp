@@ -391,7 +391,7 @@ unsigned char** harrisThreshold(float **harris, int width, int height, float thr
     {
         result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
         for (int x = 0; x < width; x++)
-            result[y][x] = harris[y][x] > ref ? 1 : 0;
+            result[y][x] = harris[y][x] > ref ? 255 : 0;
     }
 
     return result;
@@ -403,7 +403,7 @@ bool isClose(float a, float b)
     if (delta < 0)
         delta = -delta;
         
-    return delta == __FLT_EPSILON__;
+    return delta <= __FLT_EPSILON__;
 }
 
 std::vector<std::tuple<float, int, int>> detectHarrisPoints(png_bytepp image, int width, int height, int max_keypoints, float threshold)

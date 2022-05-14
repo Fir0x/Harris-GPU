@@ -143,12 +143,12 @@ void drawHarrisPoints(png_bytepp image, int width, int height, std::vector<std::
         int y = std::get<1>(kp);
         int x = std::get<2>(kp);
 
-        for (int i = (y - pointSize/2) * 4; i < height && i <= (y + pointSize/2) * 4; i++)
+        for (int i = (y - pointSize/2); i < height && i <= (y + pointSize/2); i++)
         {
             if (i < 0)
                 continue;
 
-            for (int j = (x - pointSize/2) * 4; j < width && j <= (x + pointSize/2) * 4; j++)
+            for (int j = (x - pointSize/2); j < width && j <= (x + pointSize/2); j++)
             {
                 if (j >= 0)
                 {
@@ -195,6 +195,25 @@ void matrix2image(float **m, int width, int height, char *filename)
     write_png(img, width, height, filename);
 }
 
+void debugSteps(png_bytepp gray, int width, int height)
+{
+    float **dX;
+    float **dY;
+    gauss_derivatives(gray, width, height, &dX, &dY);
+
+    float **resp = computeHarrisResponse(gray, width, height);
+    png_bytepp erod = morphoErode(gray, width, height);
+    float **dilat = morphoDilate(resp, width, height);
+    png_bytepp thres = harrisThreshold(resp, width, height, 0.5);
+
+    matrix2image(dX, width, height, "debug/dX.png");
+    matrix2image(dY, width, height, "debug/dY.png");
+    matrix2image(resp, width, height, "debug/harrisResp.png");
+    write_png(gray2rgb(erod, width, height), width, height, "debug/eroded.png");
+    matrix2image(dilat, width, height, "debug/dilated.png");
+    write_png(gray2rgb(thres, width, height), width, height, "debug/thres.png");
+}
+
 int main(int argc, char** argv)
 {
     std::string inputFile;
@@ -219,21 +238,21 @@ int main(int argc, char** argv)
 
     png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
 
-    float **dX;
-    float **dY;
-    gauss_derivatives(gray, imageWidth, imageHeight, &dX, &dY);
-    matrix2image(dX, imageWidth, imageHeight, "Dx.png");
-    matrix2image(dY, imageWidth, imageHeight, "Dy.png");
+    debugSteps(gray, imageWidth, imageHeight);
 
-    // auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
-    // std::cout << keypoints.size() << " keypoints retrieved\n";
-    // png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
-    // drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
-    // write_png(rgbGray, imageWidth, imageHeight, "converted.png");
+    auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+    std::cout << keypoints.size() << " keypoints retrieved\n";
+    for (int i = 0; i < 10 && keypoints.size(); i++)
+    {
+        std::cout << "X:" << std::get<2>(keypoints[i]) << "Y:" << std::get<1>(keypoints[i]) << "\n";
+    }
+    png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
+    drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
+    write_png(rgbGray, imageWidth, imageHeight, "converted.png");
 
     free_image(image, imageHeight);
     free_image(gray, imageHeight);
-    // free_image(rgbGray, imageHeight);
+    free_image(rgbGray, imageHeight);
 
     return 0;
 }
