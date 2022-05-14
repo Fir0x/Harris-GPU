@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 typedef unsigned char ** png_bytepp;
 
@@ -78,19 +79,19 @@ float** convolve_with_gauss(float** img, int w, int h, float** gaussKernel)
             {
                 for (int j = 0; j < 7; j++)
                 {
-                    int tmpY = y + i - 1;
+                    int tmpY = y + i - 3;
                     if (tmpY < 0)
                         tmpY = 0;
                     else if (tmpY >= h)
                         tmpY = h - 1;
 
-                    int tmpX = x + j - 1;
+                    int tmpX = x + j - 3;
                     if (tmpX < 0)
                         tmpX = 0;
                     else if (tmpX >= w)
                         tmpX = w - 1;
 
-                    accumulator += gaussKernel[6 - i][6 - j] * img[tmpY][tmpX];
+                    accumulator += gaussKernel[i][j] * img[tmpY][tmpX];
                 }
             }
 
@@ -195,6 +196,25 @@ float **scalarSumMat(float **m1, float scalar, int width, int height)
     return result;
 }
 
+void printMinMax(float **m, int width, int height)
+{
+    float minVal = m[0][0];
+    float maxVal = m[0][0];
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            float val = m[y][x];
+            if (val < minVal)
+                minVal = val;
+            else if (val > maxVal)
+                maxVal = val;
+        }
+    }
+
+    std::cout << "Min:" << minVal << " Max:" << maxVal << "\n";
+}
+
 float **computeHarrisResponse(png_bytepp img, int width, int height)
 {
     float **imx;
@@ -206,6 +226,7 @@ float **computeHarrisResponse(png_bytepp img, int width, int height)
     float **imx2 = hadamarProduct(imx, imx, width, height);
     float **Wxx = convolve_with_gauss(imx2, width, height, gauss);
     free_matrix(imx2, height);
+    printMinMax(Wxx, width, height);
 
     float **imxImy = hadamarProduct(imx, imy, width, height);
     float **Wxy = convolve_with_gauss(imxImy, width, height, gauss);
@@ -386,6 +407,7 @@ unsigned char** harrisThreshold(float **harris, int width, int height, float thr
     }
     
     float ref = minVal + threshold * (maxVal - minVal);
+    std::cout << "Ref:" << ref << " Threshold:" << threshold << " Max:" << maxVal << " Min:" << minVal << "\n";
     for (int y = 0; y < height; y++)
     {
         result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
