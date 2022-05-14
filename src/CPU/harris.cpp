@@ -300,27 +300,24 @@ void freeImage(png_bytepp img, int h)
 png_bytepp morphoErode(png_bytepp img, int width, int height)
 {
     png_bytepp structElement = getEllipse();
-    png_bytepp result = (unsigned char**)malloc(height * sizeof(unsigned char*));
-    
+    png_bytepp result = (unsigned char**)calloc(height, sizeof(unsigned char*));
+
     for (int y = 0; y < height; y++)
     {
-        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
-        
-        int imin = max(0, y - 12);
-        int imax = min(y + 12, height - 1);
-        for (int x = 0; x < height; x++)
-        {
-            int jmin = max(0, x - 12);
-            int jmax = min(x + 12, width - 1);
+        result[y] = (unsigned char*)calloc(width, sizeof(unsigned char));
+        if (y < 12 || y >= height - 12)
+            continue;
             
+        for (int x = 12; x < width - 12; x++)
+        {   
             unsigned char pixel = img[y][x];
 
-            for (int i = imin; i < imax + 1; i++)
+            for (int i = y - 12; pixel != 0 && i <= y + 12; i++)
             {
-                for (int j = jmin; j < jmax + 1; j++)
+                for (int j = x - 12 ; pixel != 0 && j <= x + 12; j++)
                 {
-                    if (structElement[i - imin][j - jmin] && img[i][j] < pixel)
-                        pixel = img[i][j];
+                    if (structElement[i - y + 12][j - x + 12] && img[i][j] == 0)
+                        pixel = 0;
                 }
             }
 
