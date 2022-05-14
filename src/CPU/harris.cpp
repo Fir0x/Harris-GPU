@@ -1,5 +1,6 @@
 #include "harris.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
@@ -98,7 +99,7 @@ float** convolve_with_gauss(float** img, int w, int h, float** gaussKernel)
     return result;
 }
 
-void free_matrix(float **m, int width, int height)
+void free_matrix(float **m, int height)
 {
     for (int y = 0; y < height; y++)
         free(m[y]);
@@ -110,7 +111,7 @@ void gauss_derivatives(unsigned char **img, int  width, int height, float ***dX,
 {
     float ***derivatives = gauss_derivative_kernels();
 
-    float **fimg = (float**)malloc(height * sizeof(float));
+    float **fimg = (float**)malloc(height * sizeof(float*));
     for (int y = 0; y < height; y++)
     {
         fimg[y] = (float*)malloc(width * sizeof(float));
@@ -121,7 +122,10 @@ void gauss_derivatives(unsigned char **img, int  width, int height, float ***dX,
     *dX = convolve_with_gauss(fimg, width, height, derivatives[0]);
     *dY = convolve_with_gauss(fimg, width, height, derivatives[1]);
 
-    free_matrix(fimg, width, height);
+    free_matrix(fimg, height);
+    free_matrix(derivatives[0], 7);
+    free_matrix(derivatives[1], 7);
+    free(derivatives);
 }
 
 float** hadamarProduct(float **m1, float **m2, int width, int height)
@@ -189,7 +193,7 @@ float **scalarSumMat(float **m1, float scalar, int width, int height)
     return result;
 }
 
-float **compute_harris_response(unsigned char **img, int width, int height)
+float **computeHarrisResponse(unsigned char **img, int width, int height)
 {
     float **imx;
     float **imy;
@@ -199,74 +203,75 @@ float **compute_harris_response(unsigned char **img, int width, int height)
 
     float **imx2 = hadamarProduct(imx, imx, width, height);
     float **Wxx = convolve_with_gauss(imx2, width, height, gauss);
-    free_matrix(imx2, width, height);
+    free_matrix(imx2, height);
 
     float **imy2 = hadamarProduct(imy, imy, width, height);
     float **Wxy = convolve_with_gauss(imy2, width, height, gauss);
-    free_matrix(imy2, width, height);
+    free_matrix(imy2, height);
 
     float **imxImy = hadamarProduct(imx, imy, width, height);
     float **Wyy = convolve_with_gauss(imxImy, width, height, gauss);
-    free_matrix(imx, width, height);
-    free_matrix(imy, width, height);
-    free_matrix(gauss, width, height);
-    free_matrix(imxImy, width, height);
+    free_matrix(imx, height);
+    free_matrix(imy, height);
+    free_matrix(gauss, 7);
+    free_matrix(imxImy, height);
 
     float **WxxWyy = hadamarProduct(Wxx, Wyy, width, height);
     float **Wxy2 = hadamarProduct(Wxy, Wxy, width, height);
+    free_matrix(Wxy, height);
     float **Wdet = subtractMat(WxxWyy, Wxy2, width, height);
-    free_matrix(WxxWyy, width, height);
-    free_matrix(Wxy2, width, height);
+    free_matrix(WxxWyy, height);
+    free_matrix(Wxy2, height);
     
     float **Wtr = sumMat(Wxx, Wyy, width, height);
-    free_matrix(Wxx, width, height);
-    free_matrix(Wyy, width, height);
+    free_matrix(Wxx, height);
+    free_matrix(Wyy, height);
     
     float **WtrEps = scalarSumMat(Wtr, 1, width, height);
-    free_matrix(Wtr, width, height);
+    free_matrix(Wtr, height);
 
     float **result = divideMat(Wdet, WtrEps, width, height);
-    free_matrix(Wdet, width, height);
-    free_matrix(WtrEps, width, height);
+    free_matrix(Wdet, height);
+    free_matrix(WtrEps, height);
 
     return result;
 }
 
-bool **getEllipse()
+unsigned char **getEllipse()
 {
-    bool staticEllipse[25][25] = {
-        {false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false},
-       {false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false},
-       {false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false},
-       {false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false},
-       {false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false},
-       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
-       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
-       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
-       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true},
-       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
-       {false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false},
-       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
-       {false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false},
-       {false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false},
-       {false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false},
-       {false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false},
-       {false, false, false, false, false, false, false, true, true, true, true, true, true, true, true, true, true, true, false, false, false, false, false, false, false},
-       {false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false, false, false, false, false, false}
+    unsigned char staticEllipse[25][25] = {
+        {0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0},
+        {0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0},
+        {0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0},
+        {0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0},
+        {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0},
+        {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0},
+        {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
+        {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
+        {0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
+        {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0},
+        {0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0},
+        {0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0},
+        {0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0},
+        {0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0},
+        {0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0}
     };
 
-    bool** ellipse = (bool**)malloc(7 * sizeof(bool*));
-    for (int i = 0; i < 7; i++)
+    unsigned char** ellipse = (unsigned char**)malloc(25 * sizeof(unsigned char*));
+    for (int i = 0; i < 25; i++)
     {
-        ellipse[i] = (bool*)malloc(7 * sizeof(bool));
-        memcpy(ellipse[i], staticEllipse[i], 7 * sizeof(bool));
+        ellipse[i] = (unsigned char*)malloc(25 * sizeof(unsigned char));
+        memcpy(ellipse[i], staticEllipse[i], 25 * sizeof(unsigned char));
     }
 
     return ellipse;
@@ -282,86 +287,7 @@ int max(int a, int b)
     return a > b ? a : b;
 }
 
-unsigned char **morpho_erode(unsigned char **img, int width, int height, int threshold)
-{
-    bool **structElement = getEllipse();
-    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
-    
-    for (int y = 0; y < height; y++)
-    {
-        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
-        
-        int imin = min(0, y - 12);
-        int imax = max(y + 12, height - 1);
-        for (int x = 0; x < height; x++)
-        {
-            int jmin = min(0, x - 12);
-            int jmax = max(x + 12, width - 1);
-            
-            unsigned char pixel = img[y][x];
-            if (pixel == 0)
-                continue;
-
-            for (int i = imin; i < imax + 1; i++)
-            {
-                for (int j = jmin; j < jmax + 1; j++)
-                {
-                    if (structElement[i - imin][j - jmin] && img[i][j] <= threshold)
-                    {
-                        pixel = 0;
-                        break;
-                    }
-                }
-                if (pixel == 0)
-                    break;
-            }
-
-            result[y][x] = pixel;
-        }
-    }
-}
-
-unsigned char **morpho_dilate(unsigned char **img, int width, int height, int threshold)
-{
-    bool **structElement = getEllipse();
-    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
-
-    for (int y = 0; y < height; y++)
-    {
-        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
-        
-        int imin = min(0, y - 12);
-        int imax = max(y + 12, height - 1);
-        
-        for (int x = 0; x < width; x++)
-        {
-            int jmin = min(0, x - 12);
-            int jmax = max(x + 12, width - 1);
-            
-            unsigned char pixel = 0;
-            if (pixel > 0)
-                continue;
-
-            for (int i = imin; i < imax + 1; i++)
-            {
-                for (int j = jmin; j < jmax + 1; j++)
-                {
-                    if (structElement[i - imin][j - jmin] && img[i][j] > threshold)
-                    {
-                        pixel = img[i][j];
-                        break;
-                    }
-                }
-                if (pixel > 0)
-                    break;
-            }
-
-            result[y][x] = pixel;
-        }
-    }
-}
-
-void free_image(unsigned char **img, int h)
+void freeImage(unsigned char **img, int h)
 {
     for (int i = 0; i < h; i++)
         free(img[i]);
@@ -369,12 +295,146 @@ void free_image(unsigned char **img, int h)
     free(img);
 }
 
-unsigned char** morpho_open(unsigned char **img, int width, int height, int threshold)
+unsigned char **morphoErode(unsigned char **img, int width, int height)
 {
-    unsigned char **eroded = morpho_erode(img, width, height, threshold);
-    unsigned char **opened = morpho_dilate(eroded, width, height, threshold);
+    unsigned char **structElement = getEllipse();
+    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+    
+    for (int y = 0; y < height; y++)
+    {
+        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
+        
+        int imin = max(0, y - 12);
+        int imax = min(y + 12, height - 1);
+        for (int x = 0; x < height; x++)
+        {
+            int jmin = max(0, x - 12);
+            int jmax = min(x + 12, width - 1);
+            
+            unsigned char pixel = img[y][x];
 
-    free_image(eroded, height);
+            for (int i = imin; i < imax + 1; i++)
+            {
+                for (int j = jmin; j < jmax + 1; j++)
+                {
+                    if (structElement[i - imin][j - jmin] && img[i][j] < pixel)
+                        pixel = img[i][j];
+                }
+            }
 
-    return opened;
+            result[y][x] = pixel;
+        }
+    }
+
+    freeImage(structElement, 25);
+
+    return result;
+}
+
+float **morphoDilate(float **img, int width, int height)
+{
+    unsigned char **structElement = getEllipse();
+    float **result = (float**)malloc(height * sizeof(float*));
+
+    for (int y = 0; y < height; y++)
+    {
+        result[y] = (float*)malloc(width * sizeof(float));
+        
+        int imin = max(0, y - 12);
+        int imax = min(y + 12, height - 1);
+        
+        for (int x = 0; x < width; x++)
+        {
+            int jmin = max(0, x - 12);
+            int jmax = min(x + 12, width - 1);
+            
+            float pixel = 0;
+
+            for (int i = imin; i < imax + 1; i++)
+            {
+                for (int j = jmin; j < jmax + 1; j++)
+                {
+                    if (structElement[i - imin][j - jmin] && img[i][j] > pixel)
+                        pixel = img[i][j];
+                }
+            }
+
+            result[y][x] = pixel;
+        }
+    }
+
+    freeImage(structElement, 25);
+
+    return result;
+}
+
+unsigned char** harrisThreshold(float **harris, int width, int height, float threshold)
+{
+    unsigned char **result = (unsigned char**)malloc(height * sizeof(unsigned char*));
+    
+    float minVal = harris[0][0];
+    float maxVal = harris[0][0];
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            float val = harris[y][x];
+            if (val < minVal)
+                minVal = val;
+
+            if (val > maxVal)
+                maxVal = val;
+        }
+    }
+    
+    float ref = minVal + threshold * (maxVal - minVal);
+    for (int y = 0; y < height; y++)
+    {
+        result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
+        for (int x = 0; x < width; x++)
+            result[y][x] = harris[y][x] > ref ? 1 : 0;
+    }
+
+    return result;
+}
+
+bool isClose(float a, float b)
+{
+    float delta = a - b;
+    if (delta < 0)
+        delta = -delta;
+        
+    return delta == __FLT_EPSILON__;
+}
+
+std::vector<std::tuple<float, int, int>> detectHarrisPoints(unsigned char **image, int width, int height, int max_keypoints, float threshold)
+{
+    float **harrisResponse = computeHarrisResponse(image, width, height);
+
+    unsigned char **erodedMask = morphoErode(image, width, height);
+    unsigned char **harrisThresholdMask = harrisThreshold(harrisResponse, width, height, threshold);
+    float **dilatedMask = morphoDilate(harrisResponse, width, height);
+
+    std::vector<std::tuple<float, int, int>> keypoints = std::vector<std::tuple<float, int, int>>();
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            if (erodedMask[y][x] > 0 && harrisThresholdMask[y][x] > 0 && isClose(dilatedMask[y][x], harrisResponse[y][x]))
+                keypoints.push_back(std::tuple<float, int, int>(harrisResponse[y][x], y, x));
+        }
+    }
+
+    free_matrix(harrisResponse, height);
+    freeImage(erodedMask, height);
+    freeImage(harrisThresholdMask, height);
+    free_matrix(dilatedMask, height);
+
+    std::sort(keypoints.begin(), keypoints.end(), [](std::tuple<float, int, int> a, std::tuple<float, int, int> b){return std::get<0>(a)>std::get<0>(b);});
+
+    std::vector<std::tuple<float, int, int>> limitedKeypoints = std::vector<std::tuple<float, int, int>>();
+    for (int i = 0; i < max_keypoints && i < keypoints.size(); i++)
+        limitedKeypoints.push_back(keypoints[i]);
+
+    return keypoints;
 }

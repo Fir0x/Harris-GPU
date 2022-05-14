@@ -82,7 +82,7 @@ png_bytepp gray2rgb(png_bytepp img, int w, int h)
             result[y][x*4] = img[y][x];
             result[y][x*4+1] = img[y][x];
             result[y][x*4+2] = img[y][x];
-            result[y][x*4+3] = 0xFF;
+            result[y][x*4+3] = 255;
         }
     }
 
@@ -136,6 +136,32 @@ void write_png(const png_bytepp buffer,
     fclose(fp);
 }
 
+void drawHarrisPoints(png_bytepp image, int width, int height, std::vector<std::tuple<float, int, int>> keypoints, int pointSize)
+{
+    for (const auto &kp : keypoints)
+    {
+        int y = std::get<1>(kp);
+        int x = std::get<2>(kp);
+
+        for (int i = (y - pointSize/2) * 4; i < height && i <= (y + pointSize/2) * 4; i++)
+        {
+            if (i < 0)
+                continue;
+
+            for (int j = (x - pointSize/2) * 4; j < width && j <= (x + pointSize/2) * 4; j++)
+            {
+                if (j >= 0)
+                {
+                    image[i][j*4] = 0;
+                    image[i][j*4+1] = 255;
+                    image[i][j*4+2] = 0;
+                    image[i][j*4+3] = 255;
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     std::string inputFile;
@@ -159,7 +185,11 @@ int main(int argc, char** argv)
     }
 
     png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
+
+    auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+    std::cout << keypoints.size() << " keypoints retrieved\n";
     png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
+    drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
     write_png(rgbGray, imageWidth, imageHeight, "converted.png");
 
     free_image(image, imageHeight);
