@@ -74,7 +74,7 @@ float** convolve_with_gauss(float** img, int w, int h, float** gaussKernel)
         result[y] = (float*)malloc(w * sizeof(float));
         for (int x  = 0; x < w; x++)
         {
-            int accumulator = 0;
+            float accumulator = 0;
             for (int i = 0; i < 7; i++)
             {
                 for (int j = 0; j < 7; j++)
