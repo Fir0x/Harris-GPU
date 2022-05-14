@@ -338,23 +338,22 @@ float **morphoDilate(float **img, int width, int height)
     for (int y = 0; y < height; y++)
     {
         result[y] = (float*)malloc(width * sizeof(float));
-        
-        int imin = max(0, y - 12);
-        int imax = min(y + 12, height - 1);
-        
-        for (int x = 0; x < width; x++)
-        {
-            int jmin = max(0, x - 12);
-            int jmax = min(x + 12, width - 1);
             
+        for (int x = 0; x < width; x++)
+        {   
             float pixel = 0;
 
-            for (int i = imin; i < imax + 1; i++)
+            for (int i = 0; i < 25; i++)
             {
-                for (int j = jmin; j < jmax + 1; j++)
+                int testedY = y + i - 12;
+                for (int j = 0; j < 25; j++)
                 {
-                    if (structElement[i - imin][j - jmin] && img[i][j] > pixel)
-                        pixel = img[i][j];
+                    int testedX = x + j - 12;
+                    if (testedY >= 0 && testedY < height
+                        && testedX >= 0 && testedX < width
+                        && structElement[i][j] 
+                        && img[testedY][testedX] > pixel)
+                        pixel = img[testedY][testedX];
                 }
             }
 
