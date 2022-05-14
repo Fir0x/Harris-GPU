@@ -207,16 +207,16 @@ float **computeHarrisResponse(png_bytepp img, int width, int height)
     float **Wxx = convolve_with_gauss(imx2, width, height, gauss);
     free_matrix(imx2, height);
 
-    float **imy2 = hadamarProduct(imy, imy, width, height);
-    float **Wxy = convolve_with_gauss(imy2, width, height, gauss);
-    free_matrix(imy2, height);
-
     float **imxImy = hadamarProduct(imx, imy, width, height);
-    float **Wyy = convolve_with_gauss(imxImy, width, height, gauss);
+    float **Wxy = convolve_with_gauss(imxImy, width, height, gauss);
+    free_matrix(imxImy, height);
+
+    float **imy2 = hadamarProduct(imy, imy, width, height);
+    float **Wyy = convolve_with_gauss(imy2, width, height, gauss);
     free_matrix(imx, height);
     free_matrix(imy, height);
     free_matrix(gauss, 7);
-    free_matrix(imxImy, height);
+    free_matrix(imy2, height);
 
     float **WxxWyy = hadamarProduct(Wxx, Wyy, width, height);
     float **Wxy2 = hadamarProduct(Wxy, Wxy, width, height);
