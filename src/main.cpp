@@ -82,7 +82,7 @@ png_bytepp gray2rgb(png_bytepp img, int w, int h)
             result[y][x*4] = img[y][x];
             result[y][x*4+1] = img[y][x];
             result[y][x*4+2] = img[y][x];
-            result[y][x*4+3] = 255;
+            result[y][x*4+3] = 0xFF;
         }
     }
 
@@ -162,6 +162,39 @@ void drawHarrisPoints(png_bytepp image, int width, int height, std::vector<std::
     }
 }
 
+void matrix2image(float **m, int width, int height, char *filename)
+{
+    int minVal = m[0][0];
+    int maxVal = m[0][0];
+    png_bytepp img = (png_bytepp)malloc(height * sizeof(png_bytepp));
+    for (int y = 0; y < height; y++)
+    {
+        img[y] = (png_bytep)malloc(width * 4 * sizeof(png_bytep));
+        for (int x = 0; x < width; x++)
+        {
+            float val = m[y][x];
+            if (val < minVal)
+                minVal = m[y][x];
+            else if (val > maxVal)
+                maxVal = val;
+        }
+    }
+
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            unsigned char val = (unsigned char)(255.0 * (m[y][x] - minVal) / (maxVal - minVal));
+            img[y][x*4] = val;
+            img[y][x*4+1] = val;
+            img[y][x*4+2] = val;
+            img[y][x*4+3] = 255;
+        }
+    }
+
+    write_png(img, width, height, filename);
+}
+
 int main(int argc, char** argv)
 {
     std::string inputFile;
@@ -186,15 +219,21 @@ int main(int argc, char** argv)
 
     png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
 
-    auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
-    std::cout << keypoints.size() << " keypoints retrieved\n";
-    png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
-    drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
-    write_png(rgbGray, imageWidth, imageHeight, "converted.png");
+    float **dX;
+    float **dY;
+    gauss_derivatives(gray, imageWidth, imageHeight, &dX, &dY);
+    matrix2image(dX, imageWidth, imageHeight, "Dx.png");
+    matrix2image(dY, imageWidth, imageHeight, "Dy.png");
+
+    // auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+    // std::cout << keypoints.size() << " keypoints retrieved\n";
+    // png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
+    // drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
+    // write_png(rgbGray, imageWidth, imageHeight, "converted.png");
 
     free_image(image, imageHeight);
     free_image(gray, imageHeight);
-    free_image(rgbGray, imageHeight);
+    // free_image(rgbGray, imageHeight);
 
     return 0;
 }
