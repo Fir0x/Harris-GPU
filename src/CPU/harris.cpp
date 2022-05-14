@@ -74,9 +74,9 @@ float** convolve_with_gauss(float** img, int w, int h, float** gaussKernel)
         for (int x  = 0; x < w; x++)
         {
             int accumulator = 0;
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 7; i++)
             {
-                for (int j = 0; j < 3; j++)
+                for (int j = 0; j < 7; j++)
                 {
                     int tmpY = y + i - 1;
                     if (tmpY < 0)
@@ -90,7 +90,7 @@ float** convolve_with_gauss(float** img, int w, int h, float** gaussKernel)
                     else if (tmpX >= w)
                         tmpX = w - 1;
 
-                    accumulator += gaussKernel[3 - i][3 - j] * img[tmpY][tmpX];
+                    accumulator += gaussKernel[6 - i][6 - j] * img[tmpY][tmpX];
                 }
             }
 
