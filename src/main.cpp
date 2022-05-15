@@ -65,7 +65,10 @@ png_bytepp rgb2gray(png_bytepp img, int w, int h)
     {
         result[y] = (unsigned char*)malloc(w * sizeof(unsigned char));
         for (int x  = 0; x < w; x++)
-            result[y][x] = (img[y][x*4] + img[y][x*4+1] + img[y][x*4+2]) / 3;
+        {
+            // OpenCv grayscale: 0.299 R + 0.587 G + 0.114 B
+            result[y][x] = 0.299 * img[y][x*4] + 0.587 * img[y][x*4+1] + 0.114 * img[y][x*4+2];
+        }
     }
 
     return result;
@@ -244,7 +247,7 @@ int main(int argc, char** argv)
 
     auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
     std::cout << keypoints.size() << " keypoints retrieved\n";
-    for (int i = 0; i < 10 && keypoints.size(); i++)
+    for (size_t i = 0; i < 10 && i < keypoints.size(); i++)
     {
         std::cout << "X:" << std::get<2>(keypoints[i]) << "Y:" << std::get<1>(keypoints[i]) << "\n";
     }
