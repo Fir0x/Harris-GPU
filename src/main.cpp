@@ -165,7 +165,7 @@ void drawHarrisPoints(png_bytepp image, int width, int height, std::vector<std::
     }
 }
 
-void matrix2image(float **m, int width, int height, char *filename)
+void matrix2image(float **m, int width, int height, const char *filename)
 {
     int minVal = m[0][0];
     int maxVal = m[0][0];
