@@ -255,14 +255,11 @@ int main(int argc, char** argv)
     }
 
     std::cout << keypoints.size() << " keypoints retrieved\n";
-    for (size_t i = 0; i < 10 && i < keypoints.size(); i++)
-    {
-        std::cout << "X:" << std::get<2>(keypoints[i]) << "Y:" << std::get<1>(keypoints[i]) << "\n";
-    }
+    std::cout << "Result in " << filename << "\n";
 
     drawHarrisPoints(image, imageWidth, imageHeight, keypoints, 5);
 
-    write_png(image, imageWidth, imageHeight, "converted.png");
+    write_png(image, imageWidth, imageHeight, filename.c_str());
 
     free_image(image, imageHeight);
 
