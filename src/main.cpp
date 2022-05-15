@@ -3,6 +3,10 @@
 #include <iostream>
 
 #include "CPU/harris.hpp"
+#include "GPU/harris.hpp"
+
+#define MAX_KEYPOINTS 2000
+#define THRESHOLD 0.5
 
 png_bytepp read_png(const std::string file_name, int *width, int *height)
 {
@@ -90,6 +94,30 @@ png_bytepp gray2rgb(png_bytepp img, int w, int h)
     }
 
     return result;
+}
+
+unsigned char* flatten(unsigned char **image, int width, int height, int depth)
+{
+    unsigned char *image_flat = (unsigned char *) malloc(height * width * depth * sizeof(unsigned char));
+
+    for (int y = 0; y < height; y++)
+        for (int x = 0; x < width * depth; x++)
+            image_flat[y * width * depth + x] = image[y][x];
+
+    return image_flat;
+}
+
+png_bytepp reshape(unsigned char* array, int width, int height, int depth)
+{
+    png_bytepp array_2D = (png_bytepp)malloc(height * sizeof(unsigned char*));
+    for (int y = 0; y < height; y++)
+        array_2D[y] = (unsigned char*)malloc(width * depth * sizeof(unsigned char));
+
+    for (int y = 0; y < height; y++)
+        for (int x = 0; x < width * depth; x++)
+            array_2D[y][x] = array[y * width * depth + x];
+
+    return array_2D;
 }
 
 void free_image(png_bytepp img, int h)
@@ -246,12 +274,18 @@ int main(int argc, char** argv)
 
     if (mode == "CPU") {
         png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
-        keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+        keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, MAX_KEYPOINTS, THRESHOLD);
         
         free_image(gray, imageHeight);
     }
     else if (mode == "GPU") {
+        unsigned char *image_1D = flatten(image, imageWidth, imageHeight, 4);
+        unsigned char *gray = (unsigned char *) malloc(imageHeight * imageWidth * sizeof(unsigned char));
 
+        detectHarrisPointsGPU(&image_1D, &gray, imageWidth, imageHeight, MAX_KEYPOINTS, THRESHOLD);
+
+        png_bytepp gray_2D = reshape(gray, imageWidth, imageHeight, 1);
+        write_png(gray2rgb(gray_2D, imageWidth, imageHeight), imageWidth, imageHeight, "gray_gpu.png");
     }
 
     std::cout << keypoints.size() << " keypoints retrieved\n";
