@@ -160,13 +160,33 @@ __global__ void computeHarrisResponse(int width, int height, size_t pitch,
   response[y * pitch + x] = Wdet / WtrEps;
 }
 
+float **morphoDilate(float *input, int width, int height, size_t pitch,
+                     float *output) {
+  int x = blockDim.x * blockIdx.x + threadIdx.x;
+  int y = blockDim.y * blockIdx.y + threadIdx.y;
+
+  float pixel = 0;
+
+  for (int i = 0; i < 25; i++) {
+    int testedY = y + i - 12;
+    for (int j = 0; j < 25; j++) {
+      int testedX = x + j - 12;
+      if (testedY >= 0 && testedY < height && testedX >= 0 && testedX < width &&
+          structElement[i][j] && input[testedY * pitch + testedX] > pixel)
+        pixel = img[testedY * pitch + testedX];
+    }
+  }
+
+  output[y * pitch + x] = pixel;
+}
+
 __global__ void harrisThreshold(float *harris, int width, int height,
-                                size_t pitch, float threshold, float ref) {
+                                size_t pitch, float ref) {
   int x = blockDim.x * blockIdx.x + threadIdx.x;
   int y = blockDim.y * blockIdx.y + threadIdx.y;
 
   float val = harris[y * pitch + x];
-  mask[y * pitch + x] = val > ref ? val : 0;
+  harris[y * pitch + x] = val > ref ? val : 0;
 }
 
 void detectHarrisPointsGPU(unsigned char **rgba_image,
@@ -228,6 +248,11 @@ void detectHarrisPointsGPU(unsigned char **rgba_image,
     float ref = 0;
 
     harrisThreshold<<<dimGrid, dimBlock>>>(response, width, height, pitch, ref);
+
+    float *dilated = imx2;
+
+    morphoDilate<<<dimGrid, dimBlock>>>(response, width, height, pitch,
+                                        dilated);
 
     if (cudaPeekAtLastError()) abortError("Computation Error");
   }
