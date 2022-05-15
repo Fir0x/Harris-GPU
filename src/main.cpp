@@ -223,7 +223,7 @@ int main(int argc, char** argv)
 {
     std::string inputFile;
     std::string filename = "output.png";
-    std::string mode = "GPU";
+    std::string mode = "CPU";
 
     CLI::App app{"harris"};
     app.add_option("-o", filename, "Output image");
@@ -235,29 +235,36 @@ int main(int argc, char** argv)
     int imageWidth;
     int imageHeight;
     png_bytepp image = read_png(inputFile, &imageWidth, &imageHeight);
+
     if(image == nullptr)
     {
         std::cout << "Could not read the image: " << inputFile << std::endl;
         return 1;
     }
 
-    png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
+    std::vector<std::tuple<float, int, int>> keypoints;
 
-    debugSteps(gray, imageWidth, imageHeight);
+    if (mode == "CPU") {
+        png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
+        keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+        
+        free_image(gray, imageHeight);
+    }
+    else if (mode == "GPU") {
 
-    auto keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, 2000, 0.5);
+    }
+
     std::cout << keypoints.size() << " keypoints retrieved\n";
     for (size_t i = 0; i < 10 && i < keypoints.size(); i++)
     {
         std::cout << "X:" << std::get<2>(keypoints[i]) << "Y:" << std::get<1>(keypoints[i]) << "\n";
     }
-    png_bytepp rgbGray = gray2rgb(gray, imageWidth, imageHeight);
-    drawHarrisPoints(rgbGray, imageWidth, imageHeight, keypoints, 5);
-    write_png(rgbGray, imageWidth, imageHeight, "converted.png");
+
+    drawHarrisPoints(image, imageWidth, imageHeight, keypoints, 5);
+
+    write_png(image, imageWidth, imageHeight, "converted.png");
 
     free_image(image, imageHeight);
-    free_image(gray, imageHeight);
-    free_image(rgbGray, imageHeight);
 
     return 0;
 }
