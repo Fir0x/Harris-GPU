@@ -133,8 +133,18 @@ __global__ void computeDerivatives(float *image, int width, int height,
   int x = blockDim.x * blockIdx.x + threadIdx.x;
   int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-  float imx = convolve(image, width, height, pitch, gauss_derivative_x);
-  float imy = convolve(image, width, height, pitch, gauss_derivative_y);
+  float imx = 0;
+  float imy = 0;
+
+  for (int i = 0; i < 7; i++) {
+    for (int j = 0; j < 7; j++) {
+      int tmpY = min(max(0, y + i - 3), height - 1);
+      int tmpX = min(max(0, x + j - 3), width - 1);
+
+      imx += gauss_derivative_x[6 - i][6 - j] * image[tmpY * pitch + tmpX];
+      imy += gauss_derivative_y[6 - i][6 - j] * image[tmpY * pitch + tmpX];
+    }
+  }
 
   imx2[y * pitch + x] = imx * imx;
   imxy[y * pitch + x] = imx * imy;
@@ -147,9 +157,22 @@ __global__ void computeHarrisResponse(int width, int height, size_t pitch,
   int x = blockDim.x * blockIdx.x + threadIdx.x;
   int y = blockDim.y * blockIdx.y + threadIdx.y;
 
-  float Wxx = convolve(imx2, width, height, pitch, gauss_kernel);
-  float Wxy = convolve(imxy, width, height, pitch, gauss_kernel);
-  float Wyy = convolve(imy2, width, height, pitch, gauss_kernel);
+  float Wxx = 0;
+  float Wxy = 0;
+  float Wyy = 0;
+
+  for (int i = 0; i < 7; i++) {
+    for (int j = 0; j < 7; j++) {
+      int tmpY = min(max(0, y + i - 3), height - 1);
+      int tmpX = min(max(0, x + j - 3), width - 1);
+
+      Wxx += gauss_kernel[6 - i][6 - j] * imx2[tmpY * pitch + tmpX];
+      Wxy += gauss_kernel[6 - i][6 - j] * imxy[tmpY * pitch + tmpX];
+      Wyy += gauss_kernel[6 - i][6 - j] * imy2[tmpY * pitch + tmpX];
+    }
+  }
+
+
 
   float WxxWyy = Wxx * Wyy;
   float Wxy2 = Wxy * Wxy;
@@ -160,7 +183,7 @@ __global__ void computeHarrisResponse(int width, int height, size_t pitch,
   response[y * pitch + x] = Wdet / WtrEps;
 }
 
-float **morphoDilate(float *input, int width, int height, size_t pitch,
+__global__ void morphoDilate(float *input, int width, int height, size_t pitch,
                      float *output) {
   int x = blockDim.x * blockIdx.x + threadIdx.x;
   int y = blockDim.y * blockIdx.y + threadIdx.y;
@@ -173,7 +196,7 @@ float **morphoDilate(float *input, int width, int height, size_t pitch,
       int testedX = x + j - 12;
       if (testedY >= 0 && testedY < height && testedX >= 0 && testedX < width &&
           structElement[i][j] && input[testedY * pitch + testedX] > pixel)
-        pixel = img[testedY * pitch + testedX];
+        pixel = input[testedY * pitch + testedX];
     }
   }
 
