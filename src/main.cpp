@@ -193,6 +193,34 @@ void drawHarrisPoints(png_bytepp image, int width, int height, std::vector<std::
     }
 }
 
+void drawGPUHarrisPoints(png_bytepp image, int width, int height, float* keypoints, size_t nbFound, int pointSize)
+{
+    for (size_t i = 0; i < nbFound; i++)
+    {
+        int x = keypoints[i * 3 + 1];
+        int y = keypoints[i * 3 + 2];
+
+        for (int i = (y - pointSize/2); i < height && i <= (y + pointSize/2); i++)
+        {
+            if (i < 0)
+                continue;
+
+            for (int j = (x - pointSize/2); j < width && j <= (x + pointSize/2); j++)
+            {
+                if (j >= 0)
+                {
+                    image[i][j*4] = 0;
+                    image[i][j*4+1] = 255;
+                    image[i][j*4+2] = 0;
+                    image[i][j*4+3] = 255;
+                }
+            }
+        }
+    }
+}
+
+
+
 void matrix2image(float **m, int width, int height, const char *filename)
 {
     int minVal = m[0][0];
@@ -277,23 +305,23 @@ int main(int argc, char** argv)
         keypoints = detectHarrisPoints(gray, imageWidth, imageHeight, MAX_KEYPOINTS, THRESHOLD);
         
         free_image(gray, imageHeight);
+
+        std::cout << keypoints.size() << " keypoints retrieved\n";
+
+        drawHarrisPoints(image, imageWidth, imageHeight, keypoints, 5);
     }
     else if (mode == "GPU") {
         unsigned char *image_1D = flatten(image, imageWidth, imageHeight, 4);
-        unsigned char *gray = (unsigned char *) malloc(imageHeight * imageWidth * sizeof(unsigned char));
+        size_t nbFound;
+        float * keypoints = detectHarrisPointsGPU(&image_1D, imageWidth, imageHeight, MAX_KEYPOINTS, THRESHOLD, &nbFound);
 
-        detectHarrisPointsGPU(&image_1D, &gray, imageWidth, imageHeight, MAX_KEYPOINTS, THRESHOLD);
+        std::cout << nbFound << " keypoints retrieved\n";
 
-        png_bytepp gray_2D = reshape(gray, imageWidth, imageHeight, 1);
-        write_png(gray2rgb(gray_2D, imageWidth, imageHeight), imageWidth, imageHeight, "gray_gpu.png");
+        drawGPUHarrisPoints(image, imageWidth, imageHeight, keypoints, nbFound, 5);
     }
 
-    std::cout << keypoints.size() << " keypoints retrieved\n";
-    std::cout << "Result in " << filename << "\n";
-
-    drawHarrisPoints(image, imageWidth, imageHeight, keypoints, 5);
-
     write_png(image, imageWidth, imageHeight, filename.c_str());
+    std::cout << "Result in " << filename << "\n";
 
     free_image(image, imageHeight);
 
