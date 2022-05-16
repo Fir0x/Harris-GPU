@@ -218,7 +218,7 @@ __global__ void removePadding(float *inputBuffer, int width, int height,
   printf("Kernel start\n");
   int line = blockDim.x * blockIdx.x + threadIdx.x;
   if (line < height)
-    memcpy(outputBuffer, inputBuffer + line * pitch, width * sizeof(float));
+    memcpy(outputBuffer + line * width, inputBuffer + line * pitch, width * sizeof(float));
   printf("Kernel end\n");
 }
 
