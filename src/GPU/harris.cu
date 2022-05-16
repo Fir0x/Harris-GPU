@@ -107,30 +107,11 @@ __global__ void rgba2gray(unsigned char *rgba_buffer, float *gray_buffer,
   if (x >= width || y >= height) return;
 
   int y_rgba = y * rgba_pitch;
-  gray_buffer[y * gray_pitch + x] = 0.299 * rgba_buffer[y_rgba + x * 4] +
-                                    0.587 * rgba_buffer[y_rgba + x * 4 + 1] +
-                                    0.114 * rgba_buffer[y_rgba + x * 4 + 2];
-}
 
-__device__ float convolve(float *matrix, int width, int height, size_t pitch,
-                          float kernel[7][7]) {
-  int x = blockDim.x * blockIdx.x + threadIdx.x;
-  int y = blockDim.y * blockIdx.y + threadIdx.y;
-
-  if (x >= width || y >= height) return;
-
-  float accumulator = 0;
-
-  for (int i = 0; i < 7; i++) {
-    for (int j = 0; j < 7; j++) {
-      int tmpY = min(max(0, y + i - 3), height - 1);
-      int tmpX = min(max(0, x + j - 3), width - 1);
-
-      accumulator += kernel[6 - i][6 - j] * matrix[tmpY * pitch + tmpX];
-    }
-  }
-
-  return accumulator;
+  float *line = (float *)((char *)gray_buffer + y * gray_pitch);
+  line[x] = 0.299 * rgba_buffer[y_rgba + x * 4] +
+            0.587 * rgba_buffer[y_rgba + x * 4 + 1] +
+            0.114 * rgba_buffer[y_rgba + x * 4 + 2];
 }
 
 __global__ void computeDerivatives(float *image, int width, int height,
@@ -149,14 +130,15 @@ __global__ void computeDerivatives(float *image, int width, int height,
       int tmpY = min(max(0, y + i - 3), height - 1);
       int tmpX = min(max(0, x + j - 3), width - 1);
 
-      imx += gauss_derivative_x[6 - i][6 - j] * image[tmpY * pitch + tmpX];
-      imy += gauss_derivative_y[6 - i][6 - j] * image[tmpY * pitch + tmpX];
+      float *line = (float *)((char *)image + tmpY * pitch);
+      imx += gauss_derivative_x[6 - i][6 - j] * line[tmpX];
+      imy += gauss_derivative_y[6 - i][6 - j] * line[tmpX];
     }
   }
 
-  imx2[y * pitch + x] = imx * imx;
-  imxy[y * pitch + x] = imx * imy;
-  imy2[y * pitch + x] = imy * imy;
+  ((float *)((char *)imx2 + y * pitch))[x] = imx * imx;
+  ((float *)((char *)imxy + y * pitch))[x] = imx * imy;
+  ((float *)((char *)imy2 + y * pitch))[x] = imy * imy;
 }
 
 __global__ void computeHarrisResponse(int width, int height, size_t pitch,
@@ -176,9 +158,12 @@ __global__ void computeHarrisResponse(int width, int height, size_t pitch,
       int tmpY = min(max(0, y + i - 3), height - 1);
       int tmpX = min(max(0, x + j - 3), width - 1);
 
-      Wxx += gauss_kernel[6 - i][6 - j] * imx2[tmpY * pitch + tmpX];
-      Wxy += gauss_kernel[6 - i][6 - j] * imxy[tmpY * pitch + tmpX];
-      Wyy += gauss_kernel[6 - i][6 - j] * imy2[tmpY * pitch + tmpX];
+      Wxx += gauss_kernel[6 - i][6 - j] *
+             ((float *)((char *)imx2 + tmpY * pitch))[tmpX];
+      Wxy += gauss_kernel[6 - i][6 - j] *
+             ((float *)((char *)imxy + tmpY * pitch))[tmpX];
+      Wyy += gauss_kernel[6 - i][6 - j] *
+             ((float *)((char *)imy2 + tmpY * pitch))[tmpX];
     }
   }
 
@@ -188,7 +173,7 @@ __global__ void computeHarrisResponse(int width, int height, size_t pitch,
   float Wdet = WxxWyy - Wxy2;
   float WtrEps = Wxx + Wyy + 1;
 
-  response[y * pitch + x] = Wdet / WtrEps;
+  ((float *)((char *)response + y * pitch))[x] = Wdet / WtrEps;
 }
 
 __global__ void morphoDilate(float *input, int width, int height, size_t pitch,
@@ -204,22 +189,22 @@ __global__ void morphoDilate(float *input, int width, int height, size_t pitch,
     int testedY = y + i - 12;
     for (int j = 0; j < 25; j++) {
       int testedX = x + j - 12;
+      float value = ((float *)((char *)input + testedY * pitch))[testedX];
       if (testedY >= 0 && testedY < height && testedX >= 0 && testedX < width &&
-          structElement[i][j] && input[testedY * pitch + testedX] > pixel)
-        pixel = input[testedY * pitch + testedX];
+          structElement[i][j] && value > pixel)
+        pixel = value;
     }
   }
 
-  output[y * pitch + x] = pixel;
+  ((float *)((char *)output + y * pitch))[x] = pixel;
 }
 
 __global__ void removePadding(float *inputBuffer, int width, int height,
                               size_t pitch, float *outputBuffer) {
-  printf("Kernel start\n");
   int line = blockDim.x * blockIdx.x + threadIdx.x;
   if (line < height)
-    memcpy(outputBuffer + line * width, inputBuffer + line * pitch, width * sizeof(float));
-  printf("Kernel end\n");
+    memcpy(outputBuffer + line * width, (char *)inputBuffer + line * pitch,
+           width * sizeof(float));
 }
 
 __global__ void harrisThreshold(float *harris, int width, int height,
@@ -247,7 +232,7 @@ __global__ void retrieveKeypoints(float *harris, float *dilatedHarris,
   int x = i % width;
 
   float val = harris[i];
-  float dilatedVal = dilatedHarris[y * pitch + x];
+  float dilatedVal = ((float *)((char *)dilatedHarris + y * pitch))[x];
   float delta = abs(dilatedVal - val);
 
   float coef = val && (delta < __FLT_EPSILON__) ? 1 : 0;
@@ -319,25 +304,14 @@ float *detectHarrisPointsGPU(unsigned char **rgba_image, int width, int height,
                                                imy2, response);
   if (cudaPeekAtLastError()) abortError("Computation Error");
 
-  printf("Grid size: %f\n", std::ceil(height / 1024.0));
-  fflush(stdout);
-  removePadding<<<(int)std::ceil(height / 1024.0), 1024>>>(response, width, height,
-                                                      pitch, response_flat);
+  removePadding<<<(int)std::ceil(height / 1024.0), 1024>>>(
+      response, width, height, pitch, response_flat);
   if (cudaPeekAtLastError()) abortError("Computation Error");
-
-  printf("Min max\n");
-  fflush(stdout);
 
   thrust::device_vector<float> vector(response_flat,
                                       response_flat + (width * height));
 
-  printf("Min max 2\n");
-  fflush(stdout);
-
   thrust::pair minmax = thrust::minmax_element(vector.begin(), vector.end());
-
-  printf("Min max 3\n");
-  fflush(stdout);
 
   float min = *(minmax.first);
   float max = *(minmax.second);
@@ -364,27 +338,21 @@ float *detectHarrisPointsGPU(unsigned char **rgba_image, int width, int height,
   thrust::sort(keypoints_vec.begin(), keypoints_vec.end(), PointCmp());
 
   size_t limit = 0;
-  while (limit < keypoints_vec.size() && limit < max_keypoints && ((float3)keypoints_vec[limit]).x != 0) limit++;
+  while (limit < keypoints_vec.size() && limit < max_keypoints) {
+    if (((float3)keypoints_vec[limit]).x == 0)
+      break;
 
-  if (limit < keypoints_vec.size() && limit > 0 && ((float3)keypoints_vec[limit]).x == 0) limit--;
-
-
-  printf("Results allocation\n");
-  fflush(stdout);
+    limit++;
+  }
 
   float *result;
   rc = cudaMallocHost(&result, width * height * sizeof(float3));
   if (rc) abortError("Fail buffer allocation");
 
-  printf("Results copy\n");
-  fflush(stdout);
-
-  rc = cudaMemcpy(result, keypoints_vec.data().get(), limit * sizeof(float3), cudaMemcpyDeviceToHost);
+  rc = cudaMemcpy(result, keypoints_vec.data().get(), limit * sizeof(float3),
+                  cudaMemcpyDeviceToHost);
   if (rc) abortError("Fail device to host copy");
-  *nbFound = limit + 1;
-
-  printf("Free\n");
-  fflush(stdout);
+  *nbFound = limit;
 
   // Free
   rc = cudaFree(rgba_buffer);
