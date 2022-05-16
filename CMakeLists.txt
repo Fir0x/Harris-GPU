@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(Harris VERSION 0.1.0)
+project(Harris CUDA CXX)
 
 include(FetchContent)
 
@@ -36,10 +36,17 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
 find_package(PNG REQUIRED)
 include_directories(${PNG_INCLUDE_DIR})
 
+add_library(harris_gpu)
+target_compile_features(harris_gpu PUBLIC cxx_std_17)
+target_link_libraries(harris_gpu PRIVATE spdlog::spdlog)
+
+target_sources(harris_gpu PRIVATE src/GPU/harris.hpp src/GPU/harris.cu)
+set_target_properties(harris_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
 include_directories(${PROJECT_SOURCE_DIR})
 add_executable(Harris src/main.cpp src/CPU/harris.cpp)
 target_compile_features(Harris PUBLIC cxx_std_17)
-target_link_libraries( Harris ${PNG_LIBRARY} CLI11::CLI11 spdlog::spdlog)
+target_link_libraries( Harris ${PNG_LIBRARY} CLI11::CLI11 spdlog::spdlog harris_gpu)
 
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
