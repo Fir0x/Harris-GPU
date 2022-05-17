@@ -281,7 +281,8 @@ int main(int argc, char **argv) {
   CLI::App app{"harris"};
   app.add_option("-o", filename, "Output image");
   app.add_option("image", inputFile, "Input image");
-  app.add_set("-m", mode, {"GPU", "CPU"}, "Either 'GPU' or 'CPU'");
+  app.add_set("-m", mode, {"GPU", "CPU", "BENCH"},
+              "Either 'GPU', 'CPU' or 'BENCH'");
 
   CLI11_PARSE(app, argc, argv);
 
@@ -315,6 +316,40 @@ int main(int argc, char **argv) {
     drawGPUHarrisPoints(image, imageWidth, imageHeight, keypoints, nbFound, 5);
 
     std::cout << nbFound << " keypoints retrieved\n";
+  } else if (mode == "BENCH") {
+    std::cout << "Image size : " << imageWidth << "x" << imageHeight << "\n";
+
+    // using time point and system_clock
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    std::chrono::duration<double> elapsed_seconds;
+
+    start = std::chrono::system_clock::now();
+
+    png_bytepp gray = rgb2gray(image, imageWidth, imageHeight);
+    keypoints = detectHarrisPoints(gray, imageWidth, imageHeight,
+                                    MAX_KEYPOINTS, THRESHOLD);
+    end = std::chrono::system_clock::now();
+
+    elapsed_seconds = end - start;
+
+    std::cout << "CPU: " << elapsed_seconds.count() << "s - "
+              << keypoints.size() << " keypoints retrieved\n";
+
+    start = std::chrono::system_clock::now();
+
+    size_t nbFound;
+    unsigned char *image_1D = flatten(image, imageWidth, imageHeight, 4);
+    float *keypoints = detectHarrisPointsGPU(&image_1D, imageWidth, imageHeight, MAX_KEYPOINTS,
+                          THRESHOLD, &nbFound);
+
+    end = std::chrono::system_clock::now();
+
+    elapsed_seconds = end - start;
+
+    std::cout << "GPU: " << elapsed_seconds.count() << "s - " << nbFound
+              << " keypoints retrieved\n";
+
+    drawGPUHarrisPoints(image, imageWidth, imageHeight, keypoints, nbFound, 5);
   }
 
   write_png(image, imageWidth, imageHeight, filename.c_str());

@@ -420,7 +420,6 @@ unsigned char** harrisThreshold(float **harris, int width, int height, float thr
     }
     
     float ref = minVal + threshold * (maxVal - minVal);
-    //std::cout << "Ref:" << ref << " Threshold:" << threshold << " Max:" << maxVal << " Min:" << minVal << "\n";
     for (int y = 0; y < height; y++)
     {
         result[y] = (unsigned char*)malloc(width * sizeof(unsigned char));
@@ -435,7 +434,6 @@ std::vector<std::tuple<float, int, int>> detectHarrisPoints(png_bytepp image, in
 {
     float **harrisResponse = computeHarrisResponse(image, width, height);
 
-    // png_bytepp erodedMask = morphoErode(image, width, height); // bad result for images not from Twin It (MLRF)
     png_bytepp harrisThresholdMask = harrisThreshold(harrisResponse, width, height, threshold);
     float **dilatedMask = morphoDilate(harrisResponse, width, height);
 
